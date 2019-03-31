@@ -2,6 +2,7 @@
 ############## Linear Extension code for Bove et al. 2019 written by Colleen Bove and James Umbanhowar ##############
 ######################################################################################################################
 
+
 ### Libraries required for this code
 library(ggplot2)
 library(lme4)
@@ -43,7 +44,7 @@ lerate <- completeFun(lerate, "le") # run function to remove any missing values 
 #################
 
 # mixed effect model run using lmer()
-lemodel <- lmer(le ~ species*(pco2+ftemp)+(1+species | tank)+(1 + (pco2+ftemp) | colony), data = lerate)
+lemodel <- lmer(le ~ species*(pco2+ftemp)+(1 | colony), data = lerate)
 
 summary(lemodel) # view summary of model
 
@@ -53,7 +54,7 @@ bootnum = 1500 # set number of iterations (we used 1500) between 999 and 9999
 seed = 4 #seed to make results replicatable (our seed was 4)
 
 out <- simulate(lemodel,nsim=bootnum,seed=seed,re.form=NULL) # simulate your model set number of times in a dataframe (samples using random effects)
-boots <- apply(out,2,function(x) predict(lmer(x ~  species * (pco2 + ftemp) + (1 + species | tank) + (1 + (pco2 + ftemp) | colony), data = lerate),re.form=NA)) # applies the predict (does not use random effects) FUNCTION to the columns of the 'out' dataframe to ...
+boots <- apply(out,2,function(x) predict(lmer(x ~ species*(pco2+ftemp)+(1 | colony), data = lerate),re.form=NA)) # applies the predict (does not use random effects) FUNCTION to the columns of the 'out' dataframe
 
 boots <- cbind(predict(lemodel,re.form=NA), boots) #combines boots matrix created above with the predicted values based on the model into a single matrix
 lerate.a <- (cbind(lerate, as.data.frame(t(apply(boots, 1, function(x) c(mean(x), quantile(x, c(0.025, 0.975)))))))) #estimates mean and 95% confidence intercals for the prediction values and adds them to your new dataframe
@@ -97,5 +98,8 @@ ggplot()+
   theme(axis.text.x=element_text(angle=45,hjust=1), legend.position="bottom")+ # angles x axis text and but legend on the bottom
   ylab(bquote('Linear extension (mm/day)'))+
   xlab("pCO2 (uatm)")+
-  facet_wrap(~species, scales="free_y") # facet wrap by species with y axis different per species
+  facet_wrap(~species) # facet wrap by species with y axis different per species
 
+sum<-summarySE(lerate.a, measurevar="lowerci", groupvars=c("species","temp2","pco2"), na.rm =T)
+sum$pco2 <- factor(sum$pco2, levels = c("pre", "cur", "eoc", "ext")) # reorder pCO2 levels
+sum
