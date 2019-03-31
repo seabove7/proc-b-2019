@@ -42,7 +42,7 @@ gcalc <- completeFun(gcalc, "gross") # run function to remove any missing values
 #################
 
 # mixed effect model run using lmer()
-gcalcmodel <- lmer(gross ~ species*(pco2+ftemp)+(1+species | tank)+(1 + (pco2+ftemp) | colony), data = gcalc)
+gcalcmodel <- lmer(gross ~ species*(pco2+ftemp)+(1 | colony), data = gcalc)
 
 summary(gcalcmodel) # view summary of model
 
@@ -52,13 +52,13 @@ bootnum = 1500 # set number of iterations (we used 1500) between 999 and 9999
 seed = 4 #seed to make results replicatable (our seed was 4)
 
 out <- simulate(gcalcmodel,nsim=bootnum,seed=seed,re.form=NULL) # simulate your model set number of times in a dataframe (samples using random effects)
-boots <- apply(out,2,function(x) predict(lmer(x ~  species * (pco2 + ftemp) + (1 + species | tank) + (1 + (pco2 + ftemp) | colony), data = gcalc),re.form=NA)) # applies the predict (does not use random effects) FUNCTION to the columns of the 'out' dataframe to ...
+boots <- apply(out,2,function(x) predict(lmer(x ~  species * (pco2 + ftemp) + (1 | colony), data = gcalc),re.form=NA)) # applies the predict (does not use random effects) FUNCTION to the columns of the 'out' dataframe
 
 boots <- cbind(predict(gcalcmodel,re.form=NA), boots) #combines boots matrix created above with the predicted values based on the model into a single matrix
 gcalc.a <- (cbind(gcalc, as.data.frame(t(apply(boots, 1, function(x) c(mean(x), quantile(x, c(0.025, 0.975)))))))) #estimates mean and 95% confidence intercals for the prediction values and adds them to your new dataframe
 
 head(gcalc.a) # view your new dataframe so you can rename the mean and CI columns
-colnames(gcalc.a)[17:19] <- c("mean", "lowerci", "upperci") # rename mean/CI columns
+colnames(gcalc.a)[18:20] <- c("mean", "lowerci", "upperci") # rename mean/CI columns
 
 write.csv(gcalc.a,file="gross_calc.csv") # save this dataframe as a CSV to keep bootstrapped mean and CI without having to rerun
 
@@ -86,7 +86,7 @@ gcalc.a<-gcalc.a %>%
 
 # plot gross calcification raw rates (points) behind 95% CI in response to pCO2 and temperature for all four coral species
 ggplot()+
-  geom_hline(yintercept=0, ligrossype=2, colour="#999999")+ # add horizontal line at '0'
+  geom_hline(yintercept=0, linetype=2, colour="#999999")+ # add horizontal line at '0'
   geom_point(data=gcalc.a,aes(x=pCO2, y=gross,colour=temp2,shape=temp2), size=1.3)+ # plots points of raw gross calcification rates
   geom_errorbar(data=gcalc.a, aes(x=mpco2, ymin=lowerci, ymax=upperci, width=0,colour=factor(temp)), size=0.8, position=dodge)+ # plots lmer 95% confidence intervals as bars over the raw rate points 
   scale_shape_manual("Temperature", values=c(1,2))+ # determine shape by temperature (factor)
@@ -97,4 +97,8 @@ ggplot()+
   ylab(bquote('Gross calcification rate (mg/cm2/day)'))+
   xlab("pCO2 (uatm)")+
   facet_wrap(~species, scales="free_y") # facet wrap by species with y axis different per species
+
+sum<-summarySE(gcalc.a, measurevar="mean", groupvars=c("species","temp2","pco2"), na.rm =T)
+sum$pco2 <- factor(sum$pco2, levels = c("pre", "cur", "eoc", "ext")) # reorder pCO2 levels
+sum
 
