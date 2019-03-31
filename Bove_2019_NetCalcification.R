@@ -2,6 +2,7 @@
 ############## Net calcification code for Bove et al. 2019 written by Colleen Bove and James Umbanhowar ##############
 ######################################################################################################################
 
+
 ### Libraries required for this code
 library(ggplot2)
 library(lme4)
@@ -16,7 +17,6 @@ library(dplyr)
 
 ### Read in data and manipulate dataframe
 coral <- read.csv("rate_22May17.csv")
-coral[1] <- NULL # this is an arbitrary column that can be removed
 coral$tp <- as.factor(coral$tp) # set tp (time point) as a factor
 coral$species <- factor(coral$species, levels = c("S", "P", "A", "T")) # reorder species levels (S = S. siderea; P = P. strigosa; A = P. astreoides; U = U. tenuifolia)
 coral$pco2 <- factor(coral$pco2, levels = c("pre", "cur", "eoc", "ext")) # reorder pCO2 levels
@@ -42,7 +42,7 @@ ncalc <- completeFun(ncalc, "rate") # run function to remove any missing values 
 #################
 
 # mixed effect model run using lmer()
-ncalcmodel <- lmer(rate ~ species*(pco2+ftemp)+(1+species | tank)+(1 + (pco2+ftemp) | colony), data = ncalc)
+ncalcmodel <- lmer(rate ~ species*(pco2+ftemp)+(1 | colony), data = ncalc)
 	
 	summary(ncalcmodel) # view summary of model
 
@@ -52,13 +52,13 @@ bootnum = 1500 # set number of iterations (we used 1500) between 999 and 9999
 seed = 4 #seed to make results replicatable (our seed was 4)
 
 out <- simulate(ncalcmodel,nsim=bootnum,seed=seed,re.form=NULL) # simulate your model set number of times in a dataframe (samples using random effects)
-boots <- apply(out,2,function(x) predict(lmer(x ~  species * (pco2 + ftemp) + (1 + species | tank) + (1 + (pco2 + ftemp) | colony), data = ncalc),re.form=NA)) # applies the predict (does not use random effects) FUNCTION to the columns of the 'out' dataframe to ...
+boots <- apply(out,2,function(x) predict(lmer(x ~ species*(pco2+ftemp)+(1 | colony), data = ncalc),re.form=NA)) # applies the predict (does not use random effects) FUNCTION to the columns of the 'out' dataframe
                                         
 boots <- cbind(predict(ncalcmodel,re.form=NA), boots) #combines boots matrix created above with the predicted values based on the model into a single matrix
 ncalc.a <- (cbind(ncalc, as.data.frame(t(apply(boots, 1, function(x) c(mean(x), quantile(x, c(0.025, 0.975)))))))) #estimates mean and 95% confidence intercals for the prediction values and adds them to your new dataframe
 
 head(ncalc.a) # view your new dataframe so you can rename the mean and CI columns
-colnames(ncalc.a)[17:19] <- c("mean", "lowerci", "upperci") # rename mean/CI columns
+colnames(ncalc.a)[18:20] <- c("mean", "lowerci", "upperci") # rename mean/CI columns
 
 write.csv(ncalc.a,file="net_calc.csv") # save this dataframe as a CSV to keep bootstrapped mean and CI without having to rerun
 
@@ -98,3 +98,8 @@ ggplot()+
   xlab("pCO2 (uatm)")+
   facet_wrap(~species, scales="free_y") # facet wrap by species with y axis different per species
 
+
+
+sum<-summarySE(ncalc.a, measurevar="lowerci", groupvars=c("species","ftemp","pco2"), na.rm =T)
+sum$pco2 <- factor(sum$pco2, levels = c("pre", "cur", "eoc", "ext")) # reorder pCO2 levels
+sum
