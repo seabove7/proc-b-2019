@@ -2,7 +2,7 @@
 
 **GitHub repository containing data and code accompanying the Caribbean coral OA and OW manuscript (Bove et al 2019)**
 
-DOI
+<a href="https://zenodo.org/badge/latestdoi/168842612"><img src="https://zenodo.org/badge/168842612.svg" alt="DOI"></a>
 
 ### Title: *Common Caribbean corals exhibit highly variable responses to future acidification and warming*
 
